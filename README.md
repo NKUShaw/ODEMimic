@@ -10,11 +10,10 @@ ODEMimic replaces SuperMimic's direct state prediction with an acceleration mode
 
 For physical state $s_t$ and action $u_t$, the network predicts normalized velocity increments:
 
-$$
-a_\phi(s_t,u_t)
-=
+```math
+a_\phi(s_t,u_t) =
 \frac{\mu_{\Delta v}+\sigma_{\Delta v}\odot f_\phi(\Phi(s_t),u_t)}{\Delta t}.
-$$
+```
 
 Here, $\Phi$ constructs and normalizes full-state features, including body kinematics. The scaling statistics are fitted on simulator data and frozen during training. Euler integration advances the physical state; root orientation is updated with quaternion integration.
 
@@ -89,4 +88,5 @@ Use `--method baseline` for SuperMimic. For AS, add `--saturation-weight 0.001` 
 ## Acknowledgements
 
 This work extends [Alchedata/supermimic-locomujoco](https://github.com/Alchedata/supermimic-locomujoco), a reproduction of **SuperMimic: Scaling Humanoid Whole-Body Control with One Differentiable World Model**. We thank the authors of SuperMimic, its public reproductions, LocoMuJoCo and mjlab. See [NOTICE.md](NOTICE.md) for source attribution.
+
 
