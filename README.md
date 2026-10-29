@@ -1,109 +1,132 @@
-# SuperMimic on LocoMuJoCo: ODE world models and anti-saturation
+# ODEMimic
 
-Whole-body motion tracking for Unitree H1 across 40 LAFAN1 motions. One world model learns the dynamics; one policy improves through 32-step differentiable imagination.
+**Distilling Physics Simulators into Structured Neural ODE World Models**
 
-Our two additions are **a full-state ODE world model** and **anti-saturation regularization (AS)**. The ODE predicts joint accelerations and reconstructs body features with differentiable forward kinematics. AS supplies a restoring gradient when raw policy outputs grow into the saturated region of `tanh`.
+ODEMimic builds on **[Alchedata/supermimic-locomujoco](https://github.com/Alchedata/supermimic-locomujoco)**. We study an acceleration-based Neural ODE world model inside SuperMimic's collect–fit–improve loop for humanoid motion imitation.
+
+The dynamics network predicts accelerations. Euler integration updates the physical state, and differentiable forward kinematics reconstructs body features. The policy improves through 32-step imagined rollouts. Anti-saturation regularization (AS) is an optional component.
+
+This repository contains the current H1 and G1 implementations, completed evaluations, and the H1 JAX-to-PyTorch migration. [Source attribution](NOTICE.md) includes the original SuperMimic paper and public reproductions.
 
 ## Results
 
-All rows below use Tanh action output, a fixed 5,000-iteration checkpoint, 51.20M training transitions, and the same 160 evaluation starts. Return is the mean episode sum; Error is relative-site position error in meters; Failures counts absorbing terminations. Lower failure count and tracking error are better.
+Each row is **mean ± sample standard deviation over seeds 42, 43 and 44**, at a fixed checkpoint. Each seed is evaluated on 40 LAFAN1 motions × 4 fixed starts = 160 episodes.
 
-| Method | Seed | Return ↑ | Error (m) ↓ | Failures / 160 ↓ |
-|---|---:|---:|---:|---:|
-| SuperMimic | 42 | 818.45 | 0.1358 | 2 |
-| SuperMimic | 43 | 858.83 | 0.0932 | 2 |
-| SuperMimic | 44 | 811.37 | 0.0937 | 17 |
-| Full-State ODE Euler | 42 | 932.54 | 0.0842 | 0 |
-| Full-State ODE Euler | 43 | 878.71 | 0.0818 | 15 |
-| Full-State ODE Euler | 44 | 921.41 | 0.0810 | 0 |
-| Full-State ODE Euler + AS | 42 | 914.58 | 0.0850 | 1 |
-| Full-State ODE Euler + AS | 43 | 935.38 | 0.0816 | 0 |
-| Full-State ODE Euler + AS | 44 | 928.36 | 0.0810 | 0 |
+### Unitree H1 · 10,000 iterations
 
-**ODE improves tracking and learns faster early in training.** At 2k, seed 42 reaches return 866.72 versus 444.76 for the MLP baseline. At 5k, Euler improves return and tracking error over the baseline for all three seeds, though seed 43 still has 15 failures.
+Native LocoMuJoCo reward, 19 torque actions, Tanh policy output.
 
-**AS helps the difficult seed without changing the environment reward.** For Euler seed 43, AS raises return from 878.71 to 935.38 and removes all 15 failures. Across the three seeds, total failures fall from 15/480 to 1/480. It is not a uniform score boost: seed 42 becomes slightly worse, while seed 44 improves modestly.
+| Method | Return ↑ | Error (m) ↓ | Failures / 160 ↓ |
+|---|---:|---:|---:|
+| SuperMimic (Tanh) | 894.32 ± 29.64 | 0.0959 ± 0.0237 | 4.67 ± 7.23 |
+| Tanh + ODE Euler | **971.85 ± 29.48** | **0.0715 ± 0.0024** | 4.33 ± 7.51 |
 
-![Return over training steps; F marks failures out of 160 episodes](docs/figures/return_vs_step.png)
+Euler improves mean return by **8.67%** and reduces tracking error by **25.53%**. H1 AS continuations are running; completed individual evaluations are exported without treating an incomplete seed group as a three-seed result. The completed 5k Euler/Midpoint/AS comparisons are in [the aggregate CSV](results/aggregate.csv).
 
-Midpoint seed 42 reaches **935.28 / 0.0783 m / 0 failures**; with AS it reaches **931.53 / 0.0800 m / 1 failure**. Its tracking error is lower than Euler's, at a higher compute cost. Accelerated Midpoint runs for seeds 42–44, with and without AS, are in progress; they are not included as completed results.
+### Unitree G1 · 20,000 updates
 
-[ODE result table](results/ode_summary_5k.csv) · [ODE learning curves](results/ode_learning_curves.csv) · [Seed-42 figure data](results/learning_curve_seed42.csv) · [Earlier experiments](results/summary_5k.csv)
+29-DOF G1 with PD position targets in mjlab, Linear policy output. Return is displayed as **32 × raw return**; the CSV includes both values.
 
-Every completed ODE run includes its full 160-episode evaluation and provenance in `results/`. The archived seed-42 ODE runs use microbatch 512 without FK reuse; seeds 43/44 use microbatch 1024 with FK reuse. The baseline seed-42 run resumed at iteration 300 with rebuilt replay. Details are in [the protocol](docs/protocol.md).
+| Method | Return (×32) ↑ | Error (m) ↓ | Failures / 160 ↓ |
+|---|---:|---:|---:|
+| SuperMimic (Linear) | 1266.78 ± 38.51 | 0.0385 ± 0.0021 | 1.00 ± 1.00 |
+| Linear + AS | 1247.27 ± 53.29 | 0.0429 ± 0.0011 | **0.00 ± 0.00** |
+| Linear + ODE Euler | **1296.97 ± 44.71** | **0.0360 ± 0.0007** | **0.00 ± 0.00** |
+| Linear + ODE Euler + AS | 1293.21 ± 14.25 | 0.0363 ± 0.0008 | 0.67 ± 0.58 |
+
+Euler improves mean return by **2.38%** and reduces tracking error by **6.35%**. AS weights are 0.01 for the MLP and 0.001 for Euler in this table. AS is not a uniform improvement over Euler alone.
+
+[Per-seed results](results/per_seed.csv) · [G1 learning curves](results/g1_learning_curves.csv) · [Raw evaluations](results/evaluations) · [Provenance](results/provenance.json)
 
 ## Method
 
-**Full-state dynamics.** The vector field takes 267 state features and 19 actions. It predicts 25 generalized accelerations and a termination logit. Euler or Midpoint integrates the 51-dimensional physical state (26 positions, including a quaternion, and 25 velocities). Differentiable FK reconstructs the remaining body features. The WM fits physical-state prediction error and termination BCE; the actor differentiates through the rollout and its learned survival weights.
+The physical state contains root position/orientation, joint positions, and their velocities. A learned field predicts generalized accelerations, with frozen real-data statistics defining their scale:
 
-**Anti-saturation.** For raw decoder output `u`, the actor objective adds:
+$$
+\mathbf a_\phi = \frac{\mu_{\Delta v}+\sigma_{\Delta v}\odot f_\phi(\mathrm{Normalize}(\Phi(s)),u)}{\Delta t}.
+$$
 
-```text
-L_AS = 0.01 * mean(relu(abs(u) - 1)^2)
-```
+Euler updates positions using current velocities and updates velocities using the learned acceleration. Root orientation uses quaternion integration. FK is rebuilt at the successor and reused for the next field evaluation, with gradients connected throughout.
 
-The penalty is evaluated at real replay starts. It acts before `tanh`, so it can pull large decoder outputs back toward a useful-gradient range. WM loss, critic targets, simulator reward and termination stay unchanged. AS is optional and also available for the MLP baseline.
+- **H1:** 51-D physical state, 267-D full-state features, 25 acceleration outputs and a termination logit.
+- **G1:** 71-D physical state, 281-D full-state features, 35 acceleration outputs and a separate learned termination head. The reproduction's domain-parameter conditioning is retained.
+- **AS:** `weight * mean(relu(abs(raw_action) - threshold)**2)` at real replay starts. It changes the actor objective, not the simulator reward or critic targets.
 
-**Execution.** ODE runs default to microbatch 1024 and reuse each freshly computed successor's FK features at the next field evaluation. Midpoint still computes new FK at its intermediate state. Gradients remain connected. Total actor batch stays 4096; Python gradient accumulation is retained because a JIT-scan version did not improve speed. Accelerated Euler measured about 2.35–2.44 seconds per training iteration on an L40S; early accelerated Midpoint measurements are about 3.63–3.69 seconds.
+[Dynamics and preprocessing](docs/method.md) · [H1 protocol](docs/protocol_h1.md) · [G1 protocol](docs/protocol_g1.md)
+
+## H1: PyTorch learning, unchanged simulator
+
+The current learner runs WM, policy, critic, differentiable FK, BPTT and Adam in PyTorch. LocoMuJoCo/MJX still runs the simulator. The JAX reference backend is retained for checkpoint bootstrap and numerical checks.
+
+Complete-iteration short tests on one L40S, excluding initial compilation:
+
+| Method | JAX microbatch | JAX seconds | PyTorch microbatch | PyTorch seconds |
+|---|---:|---:|---:|---:|
+| Tanh + AS | 1024 | 1.945 | 4096 | **1.600** |
+| Tanh + Euler + AS | 2048 | 2.452 | 4096 | **2.080** |
+
+Total actor batch stays 4096. These times include real collection, ten WM updates, one actor update and twenty critic updates. Both PyTorch short tests completed 12 updates with finite values. Forward predictions, WM/actor losses, action gradients, policy gradients and restored Adam updates were checked against JAX. [Migration details](docs/pytorch_migration.md)
 
 ## Setup
 
-Tested on Linux, Python 3.12, CUDA 12 and L40S. Replay is stored in host memory; the 4096-environment configuration needs substantial host RAM.
+Use separate environments for H1 and G1: the tested MuJoCo versions differ. Python 3.12 and CUDA are used for training. Replay requires substantial host RAM.
+
+### H1
 
 ```bash
-python3.12 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
+python3.12 -m venv .venv-h1
+source .venv-h1/bin/activate
+pip install -r requirements/h1.txt
 git clone https://github.com/robfiras/loco-mujoco.git external/loco-mujoco
 git -C external/loco-mujoco checkout 3921fedbca93876c0595c90c535b24ec08ff623d
 pip install -e external/loco-mujoco
 ```
 
-Motion names are in `configs/lafan1_40.json`. LocoMuJoCo fetches the dataset on first use. To reuse local assets, pass `--variables configs/variables.yaml` with:
+The 40 motion names are in `configs/lafan1_40.json`. LocoMuJoCo handles the H1 assets. An optional `--variables configs/variables.yaml` can point at local dataset/model caches.
 
-```yaml
-LOCOMUJOCO_CONVERTED_LAFAN1_PATH: /absolute/path/to/converted_lafan1
-LOCOMUJOCO_MODELS_PATH: /absolute/path/to/robot_models
-```
-
-## Train and evaluate
+Start a JAX reference run from scratch, or use an existing H1 checkpoint:
 
 ```bash
-# Tanh + full-state Euler
-python scripts/train.py --method ode --solver euler --seed 43 --gpu 0 --out runs/euler_s43
+python scripts/train.py --method ode --solver euler --seed 42 --gpu 0 \
+  --iterations 5000 --out runs/h1_euler_jax_s42
 
-# Add AS; use --solver midpoint for the other integrator
-python scripts/train.py --method ode --solver euler --seed 43 --gpu 1 \
-  --saturation-weight 0.01 --saturation-threshold 1 --out runs/euler_as_s43
+python scripts/convert_h1_checkpoint.py \
+  runs/h1_euler_jax_s42/checkpoints/iter_5000.pkl --out cache/h1_euler_s42
+python scripts/prepare_h1_cache.py --out cache/h1_references.npy
 
-# SuperMimic MLP baseline; AS can be added with the same flags
-python scripts/train.py --method baseline --seed 43 --gpu 2 --out runs/mlp_s43
-
-python scripts/evaluate_checkpoint.py runs/euler_s43/checkpoints/iter_5000.pkl \
-  --gpu 0 --out runs/euler_s43/reevaluation
+python scripts/train_h1.py --assets cache/h1_euler_s42 --gpu 0 \
+  --iterations 10000 --out runs/h1_euler_torch_s42
 ```
 
-Default budget: 5k iterations, 4096 environments, alternating 3/2 real steps per iteration, WM batch 2048 × 10 updates, WM window 8, imagination batch 4096 × horizon 32, and 20 critic updates. There are 262,144 additional warmup transitions. Checkpoints are saved every 100 iterations and evaluations every 1000. Add `--smoke` for six full-size updates in a separate output directory. `--resume` restores model/optimizer state and rebuilds replay.
+The converter restores all three Adam states/counters, normalization, curriculum and RNG. Replay is refilled on continuation. The PyTorch learner supports H1 MLP and Euler checkpoints with Tanh actions; Midpoint remains available through the JAX reference backend. Use `--saturation-weight 0.01` on the initial reference run to create an AS run. Resume a PyTorch run with the same `--assets` plus `--resume-torch runs/.../latest.pt`.
 
-Legacy `experts`, `sensitivity`, `trust`, linear-output and head-reset experiments remain available; see [methods](docs/methods.md). ODE experiments use Tanh action output.
+### G1
+
+```bash
+python3.12 -m venv .venv-g1
+source .venv-g1/bin/activate
+pip install -r requirements/g1.txt
+pip install 'git+https://github.com/mujocolab/mjlab.git@8bb2bc9e187797689ec82c78c35019afd2fd0376'
+
+python scripts/convert_g1_motions.py --input data/g1_csv --out data/g1_npz --input-fps 30
+python scripts/train_g1.py --method euler --data data/g1_npz --seed 42 \
+  --updates 20000 --gpu 0 --out runs/g1_euler_s42
+python scripts/evaluate_g1.py --ckpt runs/g1_euler_s42/ckpt_update_0020000.pt \
+  --data-dir data/g1_npz --out runs/g1_euler_s42/eval_20k.json
+```
+
+G1 input CSVs must already be retargeted to the 29-DOF robot. The converter resamples and computes body kinematics; it does not retarget human joints. Use `--method baseline` for SuperMimic and `--saturation-weight 0.001` for the reported Euler+AS configuration.
 
 ## Layout
 
 ```text
-supermimic/
-  train.py                 MLP baseline and earlier WM ablations
-  train_ode.py             ODE training loop
-  ode_world.py             Euler/Midpoint dynamics and differentiable FK
-  adapter.py, evaluate.py  shared simulator interface and evaluation
-  models.py, ...           shared actor, critic and utilities
-scripts/                   common launcher, evaluation and result tools
-configs/                   motion manifest
-results/                   evaluation records, curves and provenance
-docs/                      method details and protocol
+odemimic/h1/   PyTorch learner, FK, replay and Adam conversion
+odemimic/g1/   G1 world model, policy, simulator adapter and training loop
+supermimic/   inherited H1 JAX reference/bootstrap implementation
+scripts/      training, conversion and evaluation entry points
+configs/      motion manifest
+results/      fixed-budget evaluations, statistics and validation reports
+docs/         method, protocol and migration notes
 ```
 
-No per-seed code copies, checkpoints or datasets are stored here.
-
-## References
-
-This is an independent H1/LAFAN1 port of [SuperMimic](https://supermimic.github.io/), with our ODE and AS experiments. It uses [LocoMuJoCo](https://github.com/robfiras/loco-mujoco) for the simulator, motion interface and native reward. [supermimic_vibed](https://github.com/zita-ch/supermimic_vibed) and [SuperMimic-Reproduced](https://github.com/CuboiLeo/SuperMimic-Reproduced) informed implementation checks. Dataset and robot assets retain their upstream licenses.
+Weights, motion data and machine-specific job queues are not stored in Git. The training scripts save checkpoints and per-seed evaluation records. The historical H1 results and the current PyTorch continuation phase are distinguished in the provenance.

@@ -1,0 +1,7 @@
+{
+  "h1_unit_tests": 8,
+  "g1_unit_tests": 2,
+  "cli_entry_checks": 7,
+  "packaged_h1_parity_passed": true,
+  "trained_gpu_jobs_interrupted": false
+}

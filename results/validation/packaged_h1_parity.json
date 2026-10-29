@@ -1,0 +1,61 @@
+{
+  "stage": "complete",
+  "batch": 32,
+  "passed": true,
+  "metrics": {
+    "features": {
+      "max_abs": 9.5367431640625e-06,
+      "relative_l2": 2.3426637737046673e-07,
+      "cosine": 0.9999999999999725,
+      "passed": true,
+      "relative_l2_tolerance": 0.0001
+    },
+    "physical": {
+      "max_abs": 4.601478576660156e-05,
+      "relative_l2": 1.463051524154045e-06,
+      "cosine": 0.9999999999989302,
+      "passed": true,
+      "relative_l2_tolerance": 0.0001
+    },
+    "logit": {
+      "max_abs": 9.5367431640625e-06,
+      "relative_l2": 2.4536151417332915e-07,
+      "cosine": 0.9999999999999698,
+      "passed": true,
+      "relative_l2_tolerance": 0.0001
+    },
+    "raw_action": {
+      "max_abs": 1.9550323486328125e-05,
+      "relative_l2": 1.277919597231926e-06,
+      "cosine": 0.9999999999991879,
+      "passed": true,
+      "relative_l2_tolerance": 0.0001
+    },
+    "wm_loss": {
+      "max_abs": 1.430511474609375e-06,
+      "relative_l2": 2.83156225406702e-07,
+      "cosine": 1.0,
+      "passed": true,
+      "relative_l2_tolerance": 0.0001
+    },
+    "actor_loss": {
+      "max_abs": 1.52587890625e-05,
+      "relative_l2": 1.5375604097875253e-07,
+      "cosine": 1.0,
+      "passed": true,
+      "relative_l2_tolerance": 0.0001
+    },
+    "action_gradient": {
+      "max_abs": 8.716434240341187e-05,
+      "relative_l2": 0.0004877682361958441,
+      "cosine": 0.999999898529916,
+      "passed": true,
+      "relative_l2_tolerance": 0.01
+    },
+    "policy_gradient": {
+      "relative_l2": 0.00026359553288521814,
+      "cosine": 0.9999999692425194,
+      "passed": true
+    }
+  }
+}

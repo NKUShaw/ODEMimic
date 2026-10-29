@@ -111,7 +111,9 @@ class Adapter:
         # Preserve actual terminal transitions before the native automatic reset.
         self._native_reset_done = env._mjx_reset_in_step
         env._mjx_reset_in_step = lambda state: state
-        # Preserve the native benchmark absorbing test and reference/horizon ends.
+        # Replace the ineffective global height/centroid failure test. Native
+        # trajectory/horizon ends remain active; reference failure is below.
+        # Native benchmark absorbing test is preserved.
         self.bin_frames=max(1,round(1./float(env.dt)))
         lengths=np.asarray(self.lengths)
         bins=[(i,f) for i,n in enumerate(lengths) for f in range(0,int(n),self.bin_frames)]

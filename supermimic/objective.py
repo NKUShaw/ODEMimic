@@ -1,7 +1,7 @@
-"""Reference-relative posture diagnostics.
+"""Reference-contact-v1 objective shared by real and imagined transitions.
 
-The candidate reward is retained for diagnostic inspection. The aligned trainer
-uses the native reward and termination, not this candidate reward or posture gate.
+Inputs retain the existing physical +14 observation-site feature layout.
+Reference-conditioned posture permits ground motions when reference requires it.
 """
 import numpy as np
 
