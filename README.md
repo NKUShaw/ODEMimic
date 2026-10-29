@@ -6,33 +6,27 @@ ODEMimic builds on **[Alchedata/supermimic-locomujoco](https://github.com/Alched
 
 The dynamics network predicts accelerations. Euler integration updates the physical state, and differentiable forward kinematics reconstructs body features. The policy improves through 32-step imagined rollouts. Anti-saturation regularization (AS) is an optional component.
 
-This repository contains the current H1 and G1 implementations, completed evaluations, and the H1 JAX-to-PyTorch migration. [Source attribution](NOTICE.md) includes the original SuperMimic paper and public reproductions.
-
 ## Results
 
 Each row is **mean ± sample standard deviation over seeds 42, 43 and 44**, at a fixed checkpoint. Each seed is evaluated on 40 LAFAN1 motions × 4 fixed starts = 160 episodes.
 
 ### Unitree H1 · 10,000 iterations
 
-Native LocoMuJoCo reward, 19 torque actions, Tanh policy output.
-
 | Method | Return ↑ | Error (m) ↓ | Failures / 160 ↓ |
 |---|---:|---:|---:|
-| SuperMimic (Tanh) | 894.32 ± 29.64 | 0.0959 ± 0.0237 | 4.67 ± 7.23 |
-| Tanh + ODE Euler | **971.85 ± 29.48** | **0.0715 ± 0.0024** | 4.33 ± 7.51 |
+| SuperMimic | 894.32 ± 29.64 | 0.0959 ± 0.0237 | 4.67 ± 7.23 |
+| + ODE Euler | **971.85 ± 29.48** | **0.0715 ± 0.0024** | 4.33 ± 7.51 |
 
-Euler improves mean return by **8.67%** and reduces tracking error by **25.53%**. H1 AS continuations are running; completed individual evaluations are exported without treating an incomplete seed group as a three-seed result. The completed 5k Euler/Midpoint/AS comparisons are in [the aggregate CSV](results/aggregate.csv).
+Euler improves mean return by **8.67%** and reduces tracking error by **25.53%**. 
 
 ### Unitree G1 · 20,000 updates
 
-29-DOF G1 with PD position targets in mjlab, Linear policy output. Return is displayed as **32 × raw return**; the CSV includes both values.
-
 | Method | Return (×32) ↑ | Error (m) ↓ | Failures / 160 ↓ |
 |---|---:|---:|---:|
-| SuperMimic (Linear) | 1266.78 ± 38.51 | 0.0385 ± 0.0021 | 1.00 ± 1.00 |
-| Linear + AS | 1247.27 ± 53.29 | 0.0429 ± 0.0011 | **0.00 ± 0.00** |
-| Linear + ODE Euler | **1296.97 ± 44.71** | **0.0360 ± 0.0007** | **0.00 ± 0.00** |
-| Linear + ODE Euler + AS | 1293.21 ± 14.25 | 0.0363 ± 0.0008 | 0.67 ± 0.58 |
+| SuperMimic | 1266.78 ± 38.51 | 0.0385 ± 0.0021 | 1.00 ± 1.00 |
+| + AS | 1247.27 ± 53.29 | 0.0429 ± 0.0011 | **0.00 ± 0.00** |
+| + ODE Euler | **1296.97 ± 44.71** | **0.0360 ± 0.0007** | **0.00 ± 0.00** |
+| + ODE Euler + AS | 1293.21 ± 14.25 | 0.0363 ± 0.0008 | 0.67 ± 0.58 |
 
 Euler improves mean return by **2.38%** and reduces tracking error by **6.35%**. AS weights are 0.01 for the MLP and 0.001 for Euler in this table. AS is not a uniform improvement over Euler alone.
 
